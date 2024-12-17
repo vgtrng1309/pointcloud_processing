@@ -73,9 +73,9 @@ def main():
     parser.add_argument(
         "-t", "--type",
         type=str,
+        default="pcd"
         help="Point cloud type pcd/xyzdi"
     )
-
 
     parser.add_argument(
         "-s", "--start_frame",

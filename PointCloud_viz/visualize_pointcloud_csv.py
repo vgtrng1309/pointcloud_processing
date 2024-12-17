@@ -73,7 +73,7 @@ def main():
 
     parser.add_argument(
         "-m", "--frame_by_frame_mode",
-        action="store_false",
+        action="store_true",
         help="Load frame by frame"
     )
 
@@ -82,7 +82,7 @@ def main():
     data = None
     with open(args.file, "r") as f:
         data = f.read().split("\n")
-        data = data[7:-1] # Remove header and last row
+        data = data[1:-1] # Remove header and last row
     
     # visualizer
     viewer = Viewer3D()

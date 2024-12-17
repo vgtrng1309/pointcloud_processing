@@ -15,8 +15,6 @@ class CSV_Reader(object):
 
         self.type_list = ["Bone Marker", "Rigid Body"]
         
-        self.
-
         self.get_data()
 
     def get_timestamp(self):
@@ -60,7 +58,7 @@ class CSV_Reader(object):
                 data_out = ",".join(np.asarray(data_split)[type_idx])
                 f.write(data_out+"\n")
         
-        with open(self.file_path[:-4] + "_stage_02.csv", "w") as f:
+        # with open(self.file_path[:-4] + "_stage_02.csv", "w") as f:
 
         
 
