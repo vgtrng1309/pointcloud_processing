@@ -22,7 +22,11 @@ class Viewer3D(object):
 
         # pcl object
         self.pcl = o3d.geometry.PointCloud()
-
+        
+        # Draw axis
+        mesh = o3d.geometry.TriangleMesh.create_coordinate_frame()
+        self.vis.add_geometry(mesh)
+        
         #
         # self.is_pause = False
         # self.is_step = False

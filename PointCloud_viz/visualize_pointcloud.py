@@ -73,7 +73,7 @@ def main():
     parser.add_argument(
         "-t", "--type",
         type=str,
-        default="pcd"
+        default="pcd",
         help="Point cloud type pcd/xyzdi"
     )
 
