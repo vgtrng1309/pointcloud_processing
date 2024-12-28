@@ -9,11 +9,11 @@ def get_timestamp(path):
         with open(path, "r") as f:
             data = f.read().split("\n")
             data = data[1:-1] # Remove header and last row
-        ts = np.array([float(line.split(",")[1]) for line in data])
+        ts = np.array([(line.split(",")[1]) for line in data])
     else:
         frame_list = sorted(os.listdir(path))
         f_idx = frame_list[0].find(".") # Find where the format start
-        ts = np.array([float(ts[:f_idx]) for ts in frame_list])
+        ts = np.array([(ts[:f_idx]) for ts in frame_list])
     
     return ts
 
@@ -30,9 +30,9 @@ def main():
     )
 
     parser.add_argument(
-        "-s", "--synced_datadir",
+        "-s", "--sync_datadir",
         type=str,
-        help="Path to synced data dir. Should have higher FPS."
+        help="Path to sync data dir. Should have higher FPS."
     )
 
     parser.add_argument(
@@ -47,62 +47,69 @@ def main():
         help="Max difference in seconds"
     )
 
+    parser.add_argument(
+        "--offset",
+        type=float,
+        default=0.0,
+        help="Offset timestamp from gt to sensor"
+    )
+
     args = parser.parse_args()
 
     ref_ts = get_timestamp(args.ref_datadir)
-    synced_ts = get_timestamp(args.synced_datadir)
+    ref_fl_ts = ref_ts.astype(np.float)
+    sync_ts = get_timestamp(args.sync_datadir)
+    sync_fl_ts = sync_ts.astype(np.float)
 
-    # print(ref_ts[:10])
-    # print(synced_ts[:10])
-    # print(ref_ts[:10] - synced_ts[:10])
-
-    ref_idx, synced_idx = 0, 0
     max_diff = args.max_diff * 1e9 # max difference 50ms
 
-    # Find starting point
-    # check_start = np.argmin(np.abs(np.subtract(ref_ts[0], synced_ts)))
-    # synced_ts = synced_ts[check_start:]
+    # # Find starting point
+    # check_start = np.argmin(np.abs(ref_fl_ts[0] - sync_fl_ts))
+    # sync_fl_ts = sync_fl_ts[check_start:]
+    # sync_ts = sync_ts[check_start:]
+    # print(check_start)
 
-    # # print(ref_ts.shape)
-    # ref_ts_tile = np.tile(ref_ts, (synced_ts.shape[0],1)).transpose()
-    # # print(ref_ts_tile.shape)
-    # # print(synced_ts.shape)
-    # time_diff = np.abs(np.subtract(synced_ts, ref_ts_tile))
-    # print(time_diff)
-    # # print(time_diff.shape)
-    # min_diff_idx_ver = np.argmin(time_diff, axis=0)
-    # print(min_diff_idx_ver)
-    # min_diff_idx_hor = np.argmin(time_diff, axis=1)
+    # check_start = np.argmin(np.abs(sync_fl_ts[0] - ref_fl_ts))
+    # ref_fl_ts = ref_fl_ts[check_start:]
+    # ref_ts = ref_ts[check_start:]
+    # print(check_start)
+
+    """
+    Note: the np.tile will repeat the ref_fl_ts into 2D array
+          with shape (ref_fl_ts.shape[0], sync_fl_ts.shape[0])
+          i.e. [[ref1, ref2, ref3],
+                [ref1, ref2, ref3],
+                [ref1, ref2, ref3]]
+        
+          The time_diff then hold the difference between sync and ref pair by pair
+    """
+    ref_ts_tile = np.tile(ref_fl_ts, (sync_fl_ts.shape[0],1)).transpose()
+    time_diff = np.abs(np.subtract(sync_fl_ts, ref_ts_tile))
+    
+    # Get ref frame that has smallest difference to each sync frame
+    min_diff_ref2sync = np.argmin(time_diff, axis=0)
+
+    # Get sync frame that has smallest difference to each ref frame
+    min_diff_sync2ref = np.argmin(time_diff, axis=1)
 
     filename = "_mapping.txt"
     ref_sensor = args.ref_datadir[args.ref_datadir.rfind("/")+1:]
-    if (".csv" in args.synced_datadir):
-        synced_sensor = "gt"
+    if (".csv" in args.sync_datadir):
+        sync_sensor = "gt"
     else:
-        synced_sensor = args.synced_datadir[args.ref_datadir.rfind("/")+1:]
-    filename = ref_sensor + "2" + synced_sensor + filename
+        sync_sensor = args.sync_datadir[args.ref_datadir.rfind("/")+1:]
+    filename = ref_sensor + "2" + sync_sensor + filename
+
     with open(os.path.join(args.output_dir, filename), "w") as f:
-        i, j = 0, 0
-        while (i < ref_ts.shape[0] and j < synced_ts.shape[0]):
-            curr_min = np.abs(ref_ts[i] - synced_ts[j])
-            offset = 1
-            while (j + offset < synced_ts.shape[0]):
-                curr_diff = np.abs(ref_ts[i] - synced_ts[j+offset])
-                print("{:10.0f}".format(ref_ts[i]), " ", 
-                      "{:10.0f}".format(synced_ts[j+offset]), " ",
-                      curr_diff)
-                if (curr_diff < curr_min):
-                    offset += 1
-                    curr_min = curr_diff
-                else:
-                    j += offset - 1
-                    break
-            if (curr_min < max_diff):
-                f.write("{:10.0f}".format(ref_ts[i]) + "," + \
-                        "{:10.0f}".format(synced_ts[j]) + "\n")
-            # print(curr_min)
-            i += 1
-            j += 1
+        for i, ref in enumerate(ref_ts):
+            # Check the cross match between ref and sync frame
+            nearest_sync_ts = min_diff_sync2ref[i]
+            print(i, min_diff_ref2sync[nearest_sync_ts])
+            if (i == min_diff_ref2sync[nearest_sync_ts] and 
+                ref_fl_ts[i] - sync_fl_ts[nearest_sync_ts] <= max_diff):
+                f.write(ref_ts[i] + " " + sync_ts[nearest_sync_ts] + "\n")
+            else:
+                f.write(ref_ts[i] + " " + "nan\n")
 
 if __name__ == "__main__":
     main()

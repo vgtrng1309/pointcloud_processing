@@ -4,42 +4,74 @@ import cv2
 import argparse
 import json
 from scipy.spatial.transform import Rotation
+from pypcd4 import PointCloud
 
 left_cam_info = {
-    "height": 360,
-    "width": 640,
+    "height": 576,
+    "width": 1024,
     "distortion_model": "rational_polynomial",
     "d": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "k": [473.0513610839844,               0.0, 333.80499267578125,
-                        0.0, 473.0513610839844, 180.10379028320312,
-                        0.0,               0.0,                1.0],
+    "k": [756.9974365234375,               0.0, 534.0882568359375,
+                        0.0, 756.9974365234375, 288.1669311523438,
+                        0.0,               0.0,               1.0],
     "r": [1.0, 0.0, 0.0,
           0.0, 1.0, 0.0,
           0.0, 0.0, 1.0],
-    "p": [473.0513610839844,               0.0, 333.80499267578125, 0.0,
-                        0.0, 473.0513610839844, 180.10379028320312, 0.0, 
-                        0.0,               0.0,                1.0, 0.0]
+    "p": [756.9974365234375,               0.0, 534.0882568359375, 0.0,
+                        0.0, 756.9974365234375, 288.1669311523438, 0.0, 
+                        0.0,               0.0,               1.0, 0.0]
 }
 
 right_cam_info = {
-    "height": 360,
-    "width": 640,
+    "height": 576,
+    "width": 1024,
     "distortion_model": "rational_polynomial",
     "d": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    "k": [473.0513610839844,               0.0, 333.80499267578125,
-                        0.0, 473.0513610839844, 180.10379028320312,
-                        0.0,               0.0,                1.0],
+    "k": [756.9974365234375,               0.0, 534.0882568359375,
+                        0.0, 756.9974365234375, 288.1669311523438,
+                        0.0,               0.0,               1.0],
     "r": [1.0, 0.0, 0.0,
           0.0, 1.0, 0.0,
           0.0, 0.0, 1.0],
-    "p": [473.0513610839844,               0.0, 333.80499267578125, -56.79176330566406,
-                        0.0, 473.0513610839844, 180.10379028320312, 0.0, 
-                        0.0,               0.0,                1.0, 0.0]
+    "p": [756.9974365234375,               0.0, 534.0882568359375, -90.88066101074219,
+                        0.0, 756.9974365234375, 288.1669311523438, 0.0, 
+                        0.0,               0.0,               1.0, 0.0]
 }
 
-def opti2sensor_gt(T_opti_box, T_box_sensor, gt_opti):
-    gt_opti = np.array([[gt_opti[0], gt_opti[1], gt_opti[2], 1]]).T
-    return np.linalg.inv(T_box_sensor) @ np.linalg.inv(T_opti_box) @ gt_opti
+def point2pixel(point, cam_info):
+    # Define the 3D points (N, 3)
+    points_3d = np.array(point, np.float32) 
+
+    # Transform point from custom coordinator to original
+    T_org_custom = np.array([[0., -1., 0., 0.],
+                             [0., 0., -1., 0.],
+                             [1., 0., 0., 0.],
+                             [0., 0., 0., 1.]])
+    # T_org_custom = np.eye(4, 4)
+    
+    # (4, N)
+    points_3d = T_org_custom @ np.hstack((points_3d, np.ones((points_3d.shape[0],1)))).T
+    
+    # (N, 3)
+    points_3d = points_3d.T[:,:3]
+    
+    # Define the rotation and translation vectors, Extrinsic to world coordination
+    rvec = np.zeros((3, 1), np.float32) 
+    tvec = np.zeros((3, 1), np.float32)
+    
+    # Map the 3D point to 2D point
+    points_2d, _ = cv2.projectPoints(points_3d, 
+                                    rvec, tvec, 
+                                    np.array(cam_info["k"]).reshape(3, 3), 
+                                    None)
+
+    return points_2d
+
+def opti2sensor_gt(T_opti_box, T_box_sensor, points):
+    points = np.hstack((points, np.ones((points.shape[0], 1)))).T
+    
+    # (4,4) @ (4,4) @ (4, N) => (4, N)
+    return np.linalg.inv(T_box_sensor) @ np.linalg.inv(T_opti_box) @ points
 
 def create_transformation_matrix(R, t):
     T_mat = np.eye(4, 4)
@@ -71,19 +103,116 @@ def main():
 
     parser.add_argument(
         "-g", "--groundtruth",
-        type="str",
+        type=str,
         help="Path to groundtruth csv file"
     )
 
+    parser.add_argument(
+        "--mapping_file",
+        type=str,
+        help="Path to timestamp mapping file"
+    )
+
+    parser.add_argument(
+        "-s", "--start_frame",
+        type=int,
+        default=0,
+        help="Starting frame"
+    )
+
+    parser.add_argument(
+        "-m", "--frame_by_frame_mode",
+        action="store_true",
+        help="Load frame by frame"
+    )
+
+
     args = parser.parse_args()
-    point = np.array([-0.137639, 1.335311, -0.466332])
-    T_opti_box = create_transformation_matrix([0.000915, -0.000241, 8e-06, -1.0], \
-                                              [-0.172009, 1.887376, 3.303823])
-    T_box_cam = create_transformation_matrix([0.500, 0.500, -0.500, 0.500], \
-                                             [0.087, -0.717, -0.106])
     
-    point = opti2sensor_gt(T_opti_box, T_box_cam, point)
-    print(point)
+    # Get image list
+    img_list = sorted(os.listdir(args.data_dir))
+
+    # Get gt list
+    # gt_csv = None
+    # with open(args.groundtruth, "r") as f:
+    #     gt_csv = f.read().split("\n")[1:-1] # Load, split by row and remove 1st and last row
+    # gt_idx = {str(line.split(",")[1]): int(line.split(",")[0]) for line in gt_csv}
+
+    # Get mapping data
+    ts_map = np.loadtxt(args.mapping_file, dtype=str)
+
+    T_box_cam = create_transformation_matrix([0.500, 0.500, -0.500, 0.500], \
+                                             [0.167, -0.717, -0.186])
+
+    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+    #                                          [0.134, -0.034, -0.667])
+    T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+                                             [0.153, -0.091, -0.735])
+    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+    #                                          [0.097, 0.014, -0.683])
+    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+    #                                            [0.209, -0.196, -0.735])
+
+    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+    #                                          [0.097, 0.014, -0.725])
+
+    T_opti_box = create_transformation_matrix([0., 0., 0., 1.], \
+                                             [0., 0., 0.])
+
+    for i, img2gt in enumerate(ts_map):
+        if (i < args.start_frame):
+            continue
+        if (img2gt[1] == "nan"):
+            continue
+        # print("Timestamp: ", img2gt[0], "-", gt_csv[gt_idx[img2gt[1]]].split(",")[1])
+        print("Timestamp: ", img2gt[0], img2gt[1], abs(float(img2gt[0]) - float(img2gt[1])))
+        # try:
+        img = cv2.imread(os.path.join(args.data_dir, img2gt[0]+".png"))
+
+        pcd = PointCloud.from_path(os.path.join(args.data_dir.replace("images", "lidar"), img2gt[1]+".pcd"))
+        points_world = pcd.numpy(("x", "y", "z"))
+        points_world = points_world[~np.isnan(points_world).any(axis=1)]
+
+        # gt = np.array(gt_csv[gt_idx[img2gt[1]]].split(",")[2:-1], np.float32)
+        # T_opti_box = create_transformation_matrix(gt[-7:-3], gt[-3:])
+        # gt = gt[:-7]
+
+        # point in world coordinate, reshape to (N, 3)
+        # points_world = gt.reshape(-1, 3)
+
+        # points_cam = opti2sensor_gt(T_opti_box, T_box_cam, points_world).T
+        points_cam = opti2sensor_gt(T_opti_box, T_lidar_cam, points_world).T
+
+        points_cam = points_cam[points_cam[:, 0] <= 5.5]
+        points_cam = points_cam[points_cam[:, 0] >= 1.0]
+
+        points_cam = points_cam[points_cam[:, 2] <= 0.5]
+        points_cam = points_cam[points_cam[:, 2] >= -2.0]
+
+        # points_cam = points_cam[points_cam[:, 1] <= -1.]
+        # points_cam = points_cam[points_cam[:, 1] >= -3.]
+
+
+        points_img = point2pixel(points_cam[:,:3], left_cam_info)
+
+        img = cv2.flip(img, 0)
+        for point_2d in points_img:
+            point_2d = point_2d[0]
+
+            # TODO: Hard code here
+            # point_2d[0] -= int(90.88066101074219/2)
+            cv2.circle(img, point_2d.astype(np.int), 3, (0, 0, 255), -1)
+
+        img = cv2.flip(img, 0)
+        cv2.imshow("Test", img)
+        if (args.frame_by_frame_mode):
+            key = cv2.waitKey(0) 
+        else:
+            key = cv2.waitKey(1)
+        if (key == ord("q")):
+            break
+        # except:
+        #     print("Point cloud missing")
     
 
 if __name__ == "__main__":
