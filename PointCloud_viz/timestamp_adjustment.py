@@ -2,7 +2,7 @@ import os
 import shutil
 import numpy as np
 
-offset=np.float(246246682805769)#246248409585953)
+offset=np.float(6682805769)#246248409585953)
                 #246248391165972
 
 list_file = sorted(os.listdir("images"))

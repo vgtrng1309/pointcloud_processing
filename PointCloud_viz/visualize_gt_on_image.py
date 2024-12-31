@@ -22,6 +22,22 @@ left_cam_info = {
                         0.0,               0.0,               1.0, 0.0]
 }
 
+old_left_cam_info = {
+    "height": 360,
+    "width": 640,
+    "distortion_model": "rational_polynomial",
+    "d": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "k": [473.0513610839844,               0.0, 333.80499267578125,
+                        0.0, 473.0513610839844, 180.10379028320312,
+                        0.0,               0.0,               1.0],
+    "r": [1.0, 0.0, 0.0,
+          0.0, 1.0, 0.0,
+          0.0, 0.0, 1.0],
+    "p": [473.0513610839844,               0.0, 333.80499267578125, 0.0,
+                        0.0, 473.0513610839844, 180.10379028320312, 0.0, 
+                        0.0,               0.0,               1.0, 0.0]
+}
+
 right_cam_info = {
     "height": 576,
     "width": 1024,
@@ -102,9 +118,9 @@ def main():
     )
 
     parser.add_argument(
-        "-g", "--groundtruth",
+        "-p", "--pcl_path",
         type=str,
-        help="Path to groundtruth csv file"
+        help="Path to point cloud file. Can be pcd, xyzdi or groundtruth"
     )
 
     parser.add_argument(
@@ -132,32 +148,28 @@ def main():
     # Get image list
     img_list = sorted(os.listdir(args.data_dir))
 
-    # Get gt list
-    # gt_csv = None
-    # with open(args.groundtruth, "r") as f:
-    #     gt_csv = f.read().split("\n")[1:-1] # Load, split by row and remove 1st and last row
-    # gt_idx = {str(line.split(",")[1]): int(line.split(",")[0]) for line in gt_csv}
+    # Get pcl list
+    if (".csv" in args.pcl_path):
+        gt_csv = None
+        with open(args.pcl_path, "r") as f:
+            gt_csv = f.read().split("\n")[1:-1] # Load, split by row and remove 1st and last row
+        gt_idx = {str(line.split(",")[1]): int(line.split(",")[0]) for line in gt_csv}
+
+        # T_box_cam = create_transformation_matrix([0.5, 0.5, -0.5, 0.5], \
+        #                                          [0.151, -0.781, -0.186])
+        T_box_cam = create_transformation_matrix([0.5, 0.5, -0.5, 0.5], \
+                                                 [0.25, -0.761, -0.155])
+
+    else:
+        T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
+                                                #    [0.149, -0.086, -0.745])
+                                                   [0.145, -0.078, -0.745])
+        T_opti_box = create_transformation_matrix([0., 0., 0., 1.], \
+                                                  [0., 0., 0.])
 
     # Get mapping data
     ts_map = np.loadtxt(args.mapping_file, dtype=str)
 
-    T_box_cam = create_transformation_matrix([0.500, 0.500, -0.500, 0.500], \
-                                             [0.167, -0.717, -0.186])
-
-    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
-    #                                          [0.134, -0.034, -0.667])
-    T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
-                                             [0.153, -0.091, -0.735])
-    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
-    #                                          [0.097, 0.014, -0.683])
-    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
-    #                                            [0.209, -0.196, -0.735])
-
-    # T_lidar_cam = create_transformation_matrix([0.970, 0.242, -0.002, 0.005], \
-    #                                          [0.097, 0.014, -0.725])
-
-    T_opti_box = create_transformation_matrix([0., 0., 0., 1.], \
-                                             [0., 0., 0.])
 
     for i, img2gt in enumerate(ts_map):
         if (i < args.start_frame):
@@ -169,31 +181,33 @@ def main():
         # try:
         img = cv2.imread(os.path.join(args.data_dir, img2gt[0]+".png"))
 
-        pcd = PointCloud.from_path(os.path.join(args.data_dir.replace("images", "lidar"), img2gt[1]+".pcd"))
-        points_world = pcd.numpy(("x", "y", "z"))
-        points_world = points_world[~np.isnan(points_world).any(axis=1)]
+        if (".csv" in args.pcl_path):
+            gt = np.array(gt_csv[gt_idx[img2gt[1]]].split(",")[2:-1], np.float32)
+            T_opti_box = create_transformation_matrix(gt[-7:-3], gt[-3:])
+            gt = gt[:-7]
 
-        # gt = np.array(gt_csv[gt_idx[img2gt[1]]].split(",")[2:-1], np.float32)
-        # T_opti_box = create_transformation_matrix(gt[-7:-3], gt[-3:])
-        # gt = gt[:-7]
+            #point in world coordinate, reshape to (N, 3)
+            points_world = gt.reshape(-1, 3)
+            points_cam = opti2sensor_gt(T_opti_box, T_box_cam, points_world).T
+        else:
+            pcd = PointCloud.from_path(os.path.join(args.data_dir.replace("images", "lidar"), img2gt[1]+".pcd"))
+            points_world = pcd.numpy(("x", "y", "z"))
+            points_world = points_world[~np.isnan(points_world).any(axis=1)]
+            points_cam = opti2sensor_gt(T_opti_box, T_lidar_cam, points_world).T
 
-        # point in world coordinate, reshape to (N, 3)
-        # points_world = gt.reshape(-1, 3)
+        print(points_cam)
 
-        # points_cam = opti2sensor_gt(T_opti_box, T_box_cam, points_world).T
-        points_cam = opti2sensor_gt(T_opti_box, T_lidar_cam, points_world).T
-
-        points_cam = points_cam[points_cam[:, 0] <= 5.5]
+        points_cam = points_cam[points_cam[:, 0] <= 7.0]
         points_cam = points_cam[points_cam[:, 0] >= 1.0]
 
         points_cam = points_cam[points_cam[:, 2] <= 0.5]
-        points_cam = points_cam[points_cam[:, 2] >= -2.0]
+        points_cam = points_cam[points_cam[:, 2] >= -1.0]
 
-        # points_cam = points_cam[points_cam[:, 1] <= -1.]
-        # points_cam = points_cam[points_cam[:, 1] >= -3.]
+        # points_cam = points_cam[points_cam[:, 1] <= 0.5]
+        # points_cam = points_cam[points_cam[:, 1] >= -0.5]
 
 
-        points_img = point2pixel(points_cam[:,:3], left_cam_info)
+        points_img = point2pixel(points_cam[:,:3], old_left_cam_info)
 
         img = cv2.flip(img, 0)
         for point_2d in points_img:
@@ -208,7 +222,7 @@ def main():
         if (args.frame_by_frame_mode):
             key = cv2.waitKey(0) 
         else:
-            key = cv2.waitKey(1)
+            key = cv2.waitKey()
         if (key == ord("q")):
             break
         # except:

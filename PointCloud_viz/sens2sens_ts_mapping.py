@@ -60,6 +60,8 @@ def main():
     ref_fl_ts = ref_ts.astype(np.float)
     sync_ts = get_timestamp(args.sync_datadir)
     sync_fl_ts = sync_ts.astype(np.float)
+    sync_fl_ts += args.offset
+    
 
     max_diff = args.max_diff * 1e9 # max difference 50ms
 

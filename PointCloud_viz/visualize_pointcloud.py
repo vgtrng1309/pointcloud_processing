@@ -110,12 +110,15 @@ def main():
 
 
     args = parser.parse_args()
+
+    # "R": [0.509, -0.506, -0.487, -0.498],
+    #         "t": [0.043, -0.952, -0.096],
     
     T_box_bosch = create_transformation_matrix([0.509, -0.506, -0.487, -0.498], \
-                                               [-0.076, -0.987, -0.037])
+                                               [0.043, -0.952, -0.096])
 
-    T_box_lidar = create_transformation_matrix([-0.603, 0.365, 0.363, 0.609], \
-                                               [0.080, -0.050, -0.080])
+    T_box_lidar = create_transformation_matrix([-0.603, 0.366, 0.363, 0.610], \
+                                               [0.120, -0.015, -0.059])
 
     if (args.type == "pcd"):
         T_box_sensor = T_box_lidar
