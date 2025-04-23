@@ -1,0 +1,9 @@
+backup_script
+*.h5
+*.npy
+*.pth
+__pycache__
+build
+*.cpython
+*.c
+*.so

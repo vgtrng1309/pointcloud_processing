@@ -1,0 +1,33 @@
+{
+  "Model_name": "MARS",
+  "Date": "17-04-2025",
+  "MPJPE": {
+    "MPJPE_all": 0.2300755639058769,
+    "MPJPE_Pelvic": 0.16402881337896086,
+    "MPJPE_WaistRBack": 0.21016351294379168,
+    "MPJPE_RKneeOut": 0.21950408704767374,
+    "MPJPE_RAnkleOut": 0.24547580981510542,
+    "MPJPE_WaistLBack": 0.20133637968899537,
+    "MPJPE_LKneeOut": 0.19285082973054307,
+    "MPJPE_LAnkleOut": 0.2229945930553197,
+    "MPJPE_BackTop": 0.17773496153118287,
+    "MPJPE_HeadTop": 0.19068395776740144,
+    "MPJPE_RShoulderTop": 0.1899533087941553,
+    "MPJPE_RElbowOut": 0.2839035807430174,
+    "MPJPE_RWristOut": 0.36356375021374493,
+    "MPJPE_LShoulderTop": 0.18672916378235277,
+    "MPJPE_LElbowOut": 0.258088890684654,
+    "MPJPE_LWristOut": 0.3441218194112545
+  },
+  "AngleErr": {
+    "AngErr_all": 17.428177484406856,
+    "AngErr_left_shoulder": 14.674135098106765,
+    "AngErr_right_shoulder": 15.9477162778048,
+    "AngErr_left_thigh": 16.214375279848674,
+    "AngErr_right_thigh": 16.285649408433695,
+    "AngErr_left_elbow": 22.146162080850647,
+    "AngErr_right_elbow": 22.89161858301857,
+    "AngErr_left_knee": 15.778175089360733,
+    "AngErr_right_knee": 15.487588057830845
+  }
+}

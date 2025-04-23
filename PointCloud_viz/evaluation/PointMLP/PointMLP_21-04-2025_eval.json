@@ -1,0 +1,33 @@
+{
+  "Model_name": "PointMLP",
+  "Date": "21-04-2025",
+  "MPJPE": {
+    "MPJPE_all": 0.21982585595273074,
+    "MPJPE_Pelvic": 0.17027892891262997,
+    "MPJPE_WaistRBack": 0.2000846382158219,
+    "MPJPE_RKneeOut": 0.2110550803699585,
+    "MPJPE_RAnkleOut": 0.23340304944995438,
+    "MPJPE_WaistLBack": 0.1939585130575653,
+    "MPJPE_LKneeOut": 0.18962992993898325,
+    "MPJPE_LAnkleOut": 0.21968063647617278,
+    "MPJPE_BackTop": 0.1767011656559226,
+    "MPJPE_HeadTop": 0.19020410743272084,
+    "MPJPE_RShoulderTop": 0.18497821261426675,
+    "MPJPE_RElbowOut": 0.25558407312706044,
+    "MPJPE_RWristOut": 0.3398343377198214,
+    "MPJPE_LShoulderTop": 0.1839200438474641,
+    "MPJPE_LElbowOut": 0.23528473188108348,
+    "MPJPE_LWristOut": 0.312790390591537
+  },
+  "AngleErr": {
+    "AngErr_all": 16.73801940171749,
+    "AngErr_left_shoulder": 13.677995537550249,
+    "AngErr_right_shoulder": 15.339388633067479,
+    "AngErr_left_thigh": 16.49187768593476,
+    "AngErr_right_thigh": 16.336628739228296,
+    "AngErr_left_elbow": 20.906705763109553,
+    "AngErr_right_elbow": 21.43647983773317,
+    "AngErr_left_knee": 15.303542505102445,
+    "AngErr_right_knee": 14.411536512014052
+  }
+}
